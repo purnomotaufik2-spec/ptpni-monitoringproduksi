@@ -1,0 +1,161 @@
+@import "tailwindcss";
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: #0F172A;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* Heading & Numbers typography */
+h1, h2, h3, h4, .font-display {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
+/* Tabular nums for all figures */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
+/* Kartu semi-transparan kaca (Glass Card) */
+.glass-card {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow: 0 4px 24px -2px rgba(11, 31, 75, 0.06);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
+}
+
+/* Interaksi hover & tekan kartu */
+.interactive-card {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
+}
+.interactive-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px -4px rgba(11, 31, 75, 0.12);
+}
+.interactive-card:active {
+  transform: scale(0.98);
+}
+
+/* Denyut halus status hijau ▲ */
+@keyframes greenPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.25);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 4px rgba(22, 163, 74, 0);
+  }
+}
+
+.status-chip-green-pulse {
+  animation: greenPulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Animasi mengambang 3 blob */
+@keyframes floatBlobBlue {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(35px, 45px) scale(1.08);
+  }
+  66% {
+    transform: translate(-25px, 25px) scale(0.95);
+  }
+}
+
+@keyframes floatBlobGreen {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(-45px, -30px) scale(1.1);
+  }
+  66% {
+    transform: translate(30px, -40px) scale(0.92);
+  }
+}
+
+@keyframes floatBlobGold {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(40px, -35px) scale(0.96);
+  }
+  66% {
+    transform: translate(-30px, -20px) scale(1.06);
+  }
+}
+
+/* Animasi rotasi lambat watermark logo (±3°, 40 detik) */
+@keyframes slowRotateWatermark {
+  0%, 100% {
+    transform: rotate(-3deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
+}
+
+.animate-blob-blue {
+  animation: floatBlobBlue 24s ease-in-out infinite;
+}
+
+.animate-blob-green {
+  animation: floatBlobGreen 28s ease-in-out infinite;
+}
+
+.animate-blob-gold {
+  animation: floatBlobGold 26s ease-in-out infinite;
+}
+
+.animate-slow-rotate {
+  animation: slowRotateWatermark 40s ease-in-out infinite;
+}
+
+/* Prefers-reduced-motion: Nonaktifkan semua animasi berat */
+@media (prefers-reduced-motion: reduce) {
+  .animate-blob-blue,
+  .animate-blob-green,
+  .animate-blob-gold,
+  .animate-slow-rotate,
+  .status-chip-green-pulse {
+    animation: none !important;
+  }
+  .interactive-card:hover {
+    transform: none !important;
+  }
+}
+
+/* Custom scrollbars */
+.custom-scrollbar::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #EEF2FA;
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

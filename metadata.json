@@ -1,0 +1,6 @@
+{
+  "name": "PTPN I Monitoring Produksi",
+  "description": "Aplikasi monitoring produksi komoditas perkebunan PT Perkebunan Nusantara I (PTPN I) berbasis Google Apps Script.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
