@@ -5,7 +5,7 @@
 
 import React, { useState, useMemo } from "react";
 import { Search, Filter, ChevronDown, ChevronRight } from "lucide-react";
-import { Commodity, Row } from "../types";
+import { Commodity, Row, PeriodType } from "../types";
 import {
   formatRawNumber,
   formatAreaNumber,
@@ -15,9 +15,10 @@ import {
 
 interface FullDataTableProps {
   commodity: Commodity;
+  period?: PeriodType;
 }
 
-export const FullDataTable: React.FC<FullDataTableProps> = ({ commodity }) => {
+export const FullDataTable: React.FC<FullDataTableProps> = ({ commodity, period }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRegional, setSelectedRegional] = useState<string>("all");
   const [unitMode, setUnitMode] = useState<"KG" | "Ton">("Ton");
@@ -34,6 +35,7 @@ export const FullDataTable: React.FC<FullDataTableProps> = ({ commodity }) => {
 
   const isKayu = commodity.key === "kayu";
   const isTembakau = commodity.key === "tembakau";
+  const showVsTl = !period || period === "kumulatif";
 
   // Kumpulan nama regional unik
   const regionalOptions = useMemo(() => {
@@ -214,7 +216,7 @@ export const FullDataTable: React.FC<FullDataTableProps> = ({ commodity }) => {
                 </th>
 
                 {/* PRODUKTIVITAS (KG/HA) */}
-                <th colSpan={!isTembakau ? 4 : 2} className="py-1.5 px-2 text-center uppercase tracking-wider bg-[#0B1F4B]">
+                <th colSpan={!isTembakau ? (showVsTl ? 4 : 2) : 2} className="py-1.5 px-2 text-center uppercase tracking-wider bg-[#0B1F4B]">
                   PRODUKTIVITAS (KG/HA)
                 </th>
 
@@ -245,7 +247,7 @@ export const FullDataTable: React.FC<FullDataTableProps> = ({ commodity }) => {
                 {/* PRODUKTIVITAS */}
                 <th className="py-1.5 px-2 text-right min-w-[75px]">RKAP</th>
                 <th className="py-1.5 px-2 text-right min-w-[75px]">Real</th>
-                {!isTembakau && (
+                {!isTembakau && showVsTl && (
                   <>
                     <th className="py-1.5 px-2 text-right min-w-[80px]">Tahun Lalu</th>
                     <th className="py-1.5 px-2 text-right min-w-[85px]">% vs TL</th>
@@ -401,7 +403,7 @@ export const FullDataTable: React.FC<FullDataTableProps> = ({ commodity }) => {
                                 {/* Produktivitas */}
                                 <td className="py-2 px-2 text-right font-mono text-[#64748B]">{fmtProtas(unitRow.productivityRkap)}</td>
                                 <td className="py-2 px-2 text-right font-mono font-bold text-[#0B1F4B]">{fmtProtas(unitRow.productivityActual)}</td>
-                                {!isTembakau && (
+                                {!isTembakau && showVsTl && (
                                   <>
                                     <td className="py-2 px-2 text-right font-mono text-[#64748B]">{fmtProtas(unitRow.previousYearActual)}</td>
                                     <td className="py-2 px-2 text-right">
@@ -504,7 +506,7 @@ export const FullDataTable: React.FC<FullDataTableProps> = ({ commodity }) => {
                             {/* Produktivitas */}
                             <td className="py-2 px-2 text-right font-mono">{fmtProtas(group.regionalRow.productivityRkap)}</td>
                             <td className="py-2 px-2 text-right font-mono text-[#0B1F4B]">{fmtProtas(group.regionalRow.productivityActual)}</td>
-                            {!isTembakau && (
+                            {!isTembakau && showVsTl && (
                               <>
                                 <td className="py-2 px-2 text-right font-mono">{fmtProtas(group.regionalRow.previousYearActual)}</td>
                                 <td className="py-2 px-2 text-right">
@@ -615,7 +617,7 @@ export const FullDataTable: React.FC<FullDataTableProps> = ({ commodity }) => {
                     {/* Produktivitas */}
                     <td className="py-2 px-2 text-right font-mono text-white/80">{fmtProtas(commodity.grandTotal.productivityRkap)}</td>
                     <td className="py-2 px-2 text-right font-mono text-[#F5B93E] text-sm">{fmtProtas(commodity.grandTotal.productivityActual)}</td>
-                    {!isTembakau && (
+                    {!isTembakau && showVsTl && (
                       <>
                         <td className="py-2 px-2 text-right font-mono text-white/80">{fmtProtas(commodity.grandTotal.previousYearActual)}</td>
                         <td className="py-2 px-2 text-right">

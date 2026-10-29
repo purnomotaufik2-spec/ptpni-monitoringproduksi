@@ -19,6 +19,7 @@ import {
   formatRawNumber,
   getStatus,
   getPreviousYearProgress,
+  getPeriodValues,
 } from "../../utils/formatters";
 import { CommodityIcon } from "../CommodityIcons";
 
@@ -37,7 +38,7 @@ type SortType =
   | "protas_desc"
   | "nama_asc";
 
-export const KebunTab: React.FC<KebunTabProps> = ({ data, filterCommodityKey }) => {
+export const KebunTab: React.FC<KebunTabProps> = ({ data, period, filterCommodityKey }) => {
   const [selectedCommodities, setSelectedCommodities] = useState<CommodityKey[]>(
     filterCommodityKey ? [filterCommodityKey] : ALL_COMMODITY_KEYS
   );
@@ -112,13 +113,13 @@ export const KebunTab: React.FC<KebunTabProps> = ({ data, filterCommodityKey }) 
 
       switch (sortType) {
         case "capaian_desc": {
-          const achA = uA.achievementYtd ?? -999;
-          const achB = uB.achievementYtd ?? -999;
+          const achA = getPeriodValues(uA, period).achievement ?? -999;
+          const achB = getPeriodValues(uB, period).achievement ?? -999;
           return achB - achA;
         }
         case "capaian_asc": {
-          const achA = uA.achievementYtd ?? 999999;
-          const achB = uB.achievementYtd ?? 999999;
+          const achA = getPeriodValues(uA, period).achievement ?? 999999;
+          const achB = getPeriodValues(uB, period).achievement ?? 999999;
           return achA - achB;
         }
         case "prog_desc": {
@@ -132,8 +133,8 @@ export const KebunTab: React.FC<KebunTabProps> = ({ data, filterCommodityKey }) 
           return pA - pB;
         }
         case "realisasi_desc": {
-          const rA = uA.productionActualYtd ?? 0;
-          const rB = uB.productionActualYtd ?? 0;
+          const rA = getPeriodValues(uA, period).actual ?? 0;
+          const rB = getPeriodValues(uB, period).actual ?? 0;
           return rB - rA;
         }
         case "protas_desc": {
@@ -146,7 +147,12 @@ export const KebunTab: React.FC<KebunTabProps> = ({ data, filterCommodityKey }) 
           return uA.name.localeCompare(uB.name);
       }
     });
-  }, [data, selectedCommodities, selectedRegionals, searchTerm, sortType]);
+  }, [data, selectedCommodities, selectedRegionals, searchTerm, sortType, period]);
+
+  const periodLabel = period === "hari_ini" ? "Hari Ini" : period === "bulan" ? "Bulan s/d HI" : "1 Jan s/d HI";
+  const realLabel = period === "hari_ini" ? "Real Hari Ini" : period === "bulan" ? "Real Bulan s/d HI" : "Real 1 Jan s/d HI";
+  const rkapLabel = period === "hari_ini" ? "RKAP Hari Ini" : period === "bulan" ? "RKAP Bulan s/d HI" : "RKAP 1 Jan s/d HI";
+  const showVsTl = period === "kumulatif";
 
   const fmtDec = (val: number | null) => {
     if (val === null || val === undefined || isNaN(val)) return "—";
@@ -266,8 +272,12 @@ export const KebunTab: React.FC<KebunTabProps> = ({ data, filterCommodityKey }) 
               >
                 <option value="capaian_desc">Capaian thd RKAP Tertinggi</option>
                 <option value="capaian_asc">Capaian thd RKAP Terendah</option>
-                <option value="prog_desc">Progres vs TL Tertinggi</option>
-                <option value="prog_asc">Progres vs TL Terendah</option>
+                {showVsTl && (
+                  <>
+                    <option value="prog_desc">Progres vs TL Tertinggi</option>
+                    <option value="prog_asc">Progres vs TL Terendah</option>
+                  </>
+                )}
                 <option value="realisasi_desc">Realisasi Terbesar</option>
                 <option value="protas_desc">Protas Tertinggi</option>
                 <option value="nama_asc">Nama Kebun A–Z</option>
@@ -338,16 +348,17 @@ export const KebunTab: React.FC<KebunTabProps> = ({ data, filterCommodityKey }) 
             const isKayu = commodityKey === "kayu";
             const isTembakau = commodityKey === "tembakau";
 
-            const real1Jan = unit.productionActualYtd;
-            const rkap1Jan = unit.productionRkapYtd;
-            const achYtd = unit.achievementYtd;
+            const pVals = getPeriodValues(unit, period);
+            const realVal = pVals.actual;
+            const rkapVal = pVals.rkap;
+            const achVal = pVals.achievement;
             const vsTl = unit.achievementVsPreviousYear;
 
-            const st = getStatus(achYtd, comm?.hasRkap);
+            const st = getStatus(achVal, comm?.hasRkap, rkapVal);
             const prog = getPreviousYearProgress(vsTl, !isKayu && !isTembakau);
             const unitMeasure = comm?.unit || "KG";
 
-            const barPct = achYtd !== null ? Math.min(achYtd, 100) : 0;
+            const barPct = achVal !== null ? Math.min(achVal, 100) : 0;
 
             return (
               <div
@@ -373,14 +384,14 @@ export const KebunTab: React.FC<KebunTabProps> = ({ data, filterCommodityKey }) 
                     {unit.name}
                   </h3>
 
-                  {/* Real 1 Jan & RKAP 1 Jan */}
+                  {/* Real & RKAP Sesuai Periode Aktif */}
                   <div className="grid grid-cols-2 gap-2 text-xs py-2.5 border-y border-[#E2E8F0] my-2">
                     <div>
                       <span className="text-[10px] text-[#64748B] uppercase font-bold tracking-wider block">
-                        Real 1 Jan
+                        {realLabel}
                       </span>
                       <span className="font-black text-[#0B1F4B] text-base tabular-nums">
-                        {formatProductionNumber(real1Jan, unitMeasure)}{" "}
+                        {formatProductionNumber(realVal, unitMeasure)}{" "}
                         <span className="text-[10px] font-semibold text-[#64748B]">
                           {unitMeasure === "KG" ? "Ton" : "M³"}
                         </span>
@@ -389,10 +400,10 @@ export const KebunTab: React.FC<KebunTabProps> = ({ data, filterCommodityKey }) 
 
                     <div>
                       <span className="text-[10px] text-[#64748B] uppercase font-bold tracking-wider block">
-                        RKAP 1 Jan
+                        {rkapLabel}
                       </span>
                       <span className="font-bold text-[#1565C0] text-base tabular-nums">
-                        {comm?.hasRkap ? formatProductionNumber(rkap1Jan, unitMeasure) : "—"}
+                        {comm?.hasRkap ? formatProductionNumber(rkapVal, unitMeasure) : "—"}
                       </span>
                     </div>
                   </div>
@@ -426,17 +437,15 @@ export const KebunTab: React.FC<KebunTabProps> = ({ data, filterCommodityKey }) 
                       <span className="text-xs text-[#94A3B8] italic">Tanpa RKAP</span>
                     )}
 
-                    {/* Panah Progres vs TL */}
-                    {!isKayu && !isTembakau && prog.hasData ? (
+                    {/* Panah Progres vs TL (Hanya saat 1 Jan s/d HI) */}
+                    {showVsTl && !isKayu && !isTembakau && prog.hasData && (
                       <span
-                        className="text-[11px] font-bold tabular-nums"
+                        className="text-[11px] font-bold tabular-nums transition-opacity duration-200"
                         style={{ color: prog.color }}
                         title={prog.tooltip}
                       >
                         {prog.arrow} {prog.text}
                       </span>
-                    ) : (
-                      <span className="text-[10px] text-[#94A3B8]">vs TL: —</span>
                     )}
                   </div>
 
@@ -468,10 +477,12 @@ export const KebunTab: React.FC<KebunTabProps> = ({ data, filterCommodityKey }) 
                   <th className="py-3 px-3.5 font-extrabold uppercase tracking-wider">Komoditas</th>
                   <th className="py-3 px-3.5 font-extrabold uppercase tracking-wider">Kebun</th>
                   <th className="py-3 px-3.5 font-extrabold uppercase tracking-wider">Regional</th>
-                  <th className="py-3 px-3.5 font-extrabold uppercase tracking-wider text-right">Real 1 Jan</th>
-                  <th className="py-3 px-3.5 font-extrabold uppercase tracking-wider text-right">RKAP 1 Jan</th>
+                  <th className="py-3 px-3.5 font-extrabold uppercase tracking-wider text-right">{realLabel}</th>
+                  <th className="py-3 px-3.5 font-extrabold uppercase tracking-wider text-right">{rkapLabel}</th>
                   <th className="py-3 px-3.5 font-extrabold uppercase tracking-wider text-center">% Capaian</th>
-                  <th className="py-3 px-3.5 font-extrabold uppercase tracking-wider text-right">Progres vs TL</th>
+                  {showVsTl && (
+                    <th className="py-3 px-3.5 font-extrabold uppercase tracking-wider text-right">Progres vs TL</th>
+                  )}
                   <th className="py-3 px-3.5 font-extrabold uppercase tracking-wider text-right">Protas (KG/Ha)</th>
                 </tr>
               </thead>
@@ -482,12 +493,13 @@ export const KebunTab: React.FC<KebunTabProps> = ({ data, filterCommodityKey }) 
                   const isKayu = commodityKey === "kayu";
                   const isTembakau = commodityKey === "tembakau";
 
-                  const real1Jan = unit.productionActualYtd;
-                  const rkap1Jan = unit.productionRkapYtd;
-                  const achYtd = unit.achievementYtd;
+                  const pVals = getPeriodValues(unit, period);
+                  const realVal = pVals.actual;
+                  const rkapVal = pVals.rkap;
+                  const achVal = pVals.achievement;
                   const vsTl = unit.achievementVsPreviousYear;
 
-                  const st = getStatus(achYtd, comm?.hasRkap);
+                  const st = getStatus(achVal, comm?.hasRkap, rkapVal);
                   const prog = getPreviousYearProgress(vsTl, !isKayu && !isTembakau);
                   const unitMeasure = comm?.unit || "KG";
 
@@ -505,13 +517,13 @@ export const KebunTab: React.FC<KebunTabProps> = ({ data, filterCommodityKey }) 
                       <td className="py-2.5 px-3.5 font-bold text-[#0B1F4B]">{unit.name}</td>
                       <td className="py-2.5 px-3.5 text-[#64748B]">{unit.regional || "—"}</td>
                       <td className="py-2.5 px-3.5 text-right font-black tabular-nums">
-                        {formatProductionNumber(real1Jan, unitMeasure)}{" "}
+                        {formatProductionNumber(realVal, unitMeasure)}{" "}
                         <span className="text-[10px] font-semibold text-[#64748B]">
                           {unitMeasure === "KG" ? "Ton" : "M³"}
                         </span>
                       </td>
                       <td className="py-2.5 px-3.5 text-right font-bold text-[#1565C0] tabular-nums">
-                        {comm?.hasRkap ? formatProductionNumber(rkap1Jan, unitMeasure) : "—"}
+                        {comm?.hasRkap ? formatProductionNumber(rkapVal, unitMeasure) : "—"}
                       </td>
                       <td className="py-2.5 px-3.5 text-center">
                         {comm?.hasRkap ? (
@@ -525,15 +537,17 @@ export const KebunTab: React.FC<KebunTabProps> = ({ data, filterCommodityKey }) 
                           <span className="text-[#94A3B8]">—</span>
                         )}
                       </td>
-                      <td className="py-2.5 px-3.5 text-right">
-                        {!isKayu && !isTembakau && prog.hasData ? (
-                          <span className="font-bold tabular-nums" style={{ color: prog.color }}>
-                            {prog.arrow} {prog.text}
-                          </span>
-                        ) : (
-                          <span className="text-[#94A3B8]">—</span>
-                        )}
-                      </td>
+                      {showVsTl && (
+                        <td className="py-2.5 px-3.5 text-right">
+                          {!isKayu && !isTembakau && prog.hasData ? (
+                            <span className="font-bold tabular-nums" style={{ color: prog.color }}>
+                              {prog.arrow} {prog.text}
+                            </span>
+                          ) : (
+                            <span className="text-[#94A3B8]">—</span>
+                          )}
+                        </td>
+                      )}
                       <td className="py-2.5 px-3.5 text-right tabular-nums font-bold">
                         {formatRawNumber(unit.productivityActual, 1)}
                       </td>

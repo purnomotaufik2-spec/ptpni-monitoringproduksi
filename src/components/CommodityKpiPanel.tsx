@@ -25,6 +25,7 @@ import {
   getStatus,
   getPreviousYearProgress,
   formatCompactNumber,
+  getPeriodValues,
 } from "../utils/formatters";
 import ReactECharts from "echarts-for-react";
 
@@ -59,6 +60,14 @@ export const CommodityKpiPanel: React.FC<CommodityKpiPanelProps> = ({
 
   const uCount = unitCount !== undefined ? unitCount : (commodity.units?.length || 0);
   const rCount = regionalCount !== undefined ? regionalCount : (commodity.regionals?.length || 0);
+
+  const periodLabel = period === "hari_ini" ? "Hari Ini" : period === "bulan" ? "Bulan s/d HI" : "1 Jan s/d HI";
+  const realLabel = period === "hari_ini" ? "Real Hari Ini" : period === "bulan" ? "Real Bulan s/d HI" : "Real 1 Jan s/d HI";
+  const rkapLabel = period === "hari_ini" ? "RKAP Hari Ini" : period === "bulan" ? "RKAP Bulan s/d HI" : "RKAP 1 Jan s/d HI";
+  const showVsTl = period === "kumulatif";
+
+  const periodVals = getPeriodValues(row, period);
+  const statusActive = getStatus(periodVals.achievement, commodity.hasRkap, periodVals.rkap);
 
   // Status Capaian Kumulatif 1 Jan s.d HI
   const statusYtd = getStatus(row.achievementYtd, commodity.hasRkap);
@@ -327,41 +336,43 @@ export const CommodityKpiPanel: React.FC<CommodityKpiPanelProps> = ({
           </div>
         </div>
 
-        {/* 2. Real 1 Jan s.d HI + panah vs TL */}
+        {/* 2. Realisasi Sesuai Periode Aktif + panah vs TL */}
         <div className="bg-white rounded-[14px] p-4 sm:p-5 border border-[#E2E8F0] shadow-[0_2px_10px_rgba(11,31,75,0.06)] flex flex-col justify-between">
           <span className="text-[11px] font-bold uppercase tracking-wider text-[#2E7D32]">
-            REAL 1 JAN S.D HI
+            {realLabel.toUpperCase()}
           </span>
           <div className="text-[28px] sm:text-[34px] font-black text-[#0B1F4B] tabular-nums my-1">
-            {formatProductionNumber(row.productionActualYtd, commodity.unit)}{" "}
+            {formatProductionNumber(periodVals.actual, commodity.unit)}{" "}
             <span className="text-sm font-bold text-[#64748B]">Ton</span>
           </div>
-          <div className="text-xs font-semibold flex items-center gap-1.5" style={{ color: progressVsTL.color }}>
-            <span>{progressVsTL.arrow}</span>
-            <span>{progressVsTL.text}</span>
-          </div>
+          {showVsTl && (
+            <div className="text-xs font-semibold flex items-center gap-1.5 transition-opacity duration-200" style={{ color: progressVsTL.color }}>
+              <span>{progressVsTL.arrow}</span>
+              <span>{progressVsTL.text}</span>
+            </div>
+          )}
         </div>
 
-        {/* 3. % Capaian 1 Jan s.d HI thd RKAP (Chip Besar) */}
+        {/* 3. % Capaian Sesuai Periode Aktif thd RKAP (Chip Besar) */}
         <div className="bg-white rounded-[14px] p-4 sm:p-5 border border-[#E2E8F0] shadow-[0_2px_10px_rgba(11,31,75,0.06)] flex flex-col justify-between">
           <span className="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
-            % CAPAIAN 1 JAN S.D HI
+            % CAPAIAN {periodLabel.toUpperCase()}
           </span>
           <div className="my-1">
             <span
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-[20px] sm:text-[24px] font-black tabular-nums shadow-2xs"
               style={{
-                backgroundColor: statusYtd.bgColor,
-                color: statusYtd.textColor,
-                border: `1px solid ${statusYtd.borderColor}`,
+                backgroundColor: statusActive.bgColor,
+                color: statusActive.textColor,
+                border: `1px solid ${statusActive.borderColor}`,
               }}
             >
-              <span>{statusYtd.arrow}</span>
-              <span>{row.achievementYtd !== null ? `${fmtDec(row.achievementYtd)}%` : "—"}</span>
+              <span>{statusActive.arrow}</span>
+              <span>{periodVals.achievement !== null ? `${fmtDec(periodVals.achievement)}%` : "—"}</span>
             </span>
           </div>
-          <div className="text-xs font-medium" style={{ color: statusYtd.textColor }}>
-            {statusYtd.label}
+          <div className="text-xs font-medium" style={{ color: statusActive.textColor }}>
+            {statusActive.label}
           </div>
         </div>
 
@@ -576,26 +587,32 @@ export const CommodityKpiPanel: React.FC<CommodityKpiPanelProps> = ({
             <span className="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
               PROGRES VS TAHUN LALU
             </span>
-            <TrendingUp className="w-4 h-4" style={{ color: progressVsTL.color }} />
+            <TrendingUp className="w-4 h-4" style={{ color: showVsTl ? progressVsTL.color : "#94A3B8" }} />
           </div>
 
-          <div>
-            {!isTembakau && row.achievementVsPreviousYear !== null ? (
-              <div className="text-[26px] sm:text-[30px] font-black tabular-nums leading-tight" style={{ color: progressVsTL.color }}>
-                {progressVsTL.arrow} {fmtDec(row.achievementVsPreviousYear)}%
+          {showVsTl ? (
+            <div className="transition-opacity duration-200">
+              {!isTembakau && row.achievementVsPreviousYear !== null ? (
+                <div className="text-[26px] sm:text-[30px] font-black tabular-nums leading-tight" style={{ color: progressVsTL.color }}>
+                  {progressVsTL.arrow} {fmtDec(row.achievementVsPreviousYear)}%
+                </div>
+              ) : (
+                <div className="text-base text-[#94A3B8] font-bold">
+                  {isTembakau ? "Tidak tersedia" : "—"}
+                </div>
+              )}
+              <div className="text-xs mt-1 font-semibold" style={{ color: progressVsTL.color }}>
+                {progressVsTL.label}
               </div>
-            ) : (
-              <div className="text-base text-[#94A3B8] font-bold">
-                {isTembakau ? "Tidak tersedia" : "—"}
-              </div>
-            )}
-            <div className="text-xs mt-1 font-semibold" style={{ color: progressVsTL.color }}>
-              {progressVsTL.label}
             </div>
-          </div>
+          ) : (
+            <div className="py-2 text-xs text-[#94A3B8] font-medium leading-relaxed transition-opacity duration-200">
+              Perbandingan tahun lalu tersedia pada periode 1 Jan s/d HI
+            </div>
+          )}
 
           <div className="pt-2 border-t border-[#E2E8F0] text-xs text-[#64748B]">
-            {progressVsTL.text} thd produksi real tahun lalu
+            {showVsTl ? `${progressVsTL.text} thd produksi real tahun lalu` : "Tersedia pada periode 1 Jan s/d HI"}
           </div>
         </div>
       </section>

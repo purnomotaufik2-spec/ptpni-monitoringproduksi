@@ -69,24 +69,82 @@ export async function apiLogin(
 /**
  * 2. Aksi Dashboard
  * { action: "dashboard", token }
+ * Retry otomatis sampai 3 kali jika gagal (error jaringan, timeout 90s, atau bukan JSON)
+ * dengan jeda berturut-turut 2, 4, 6 detik.
  */
 export async function apiGetDashboard(
   token: string,
-  onSessionExpired?: () => void
+  onSessionExpired?: () => void,
+  onRetry?: (attempt: number) => void
 ): Promise<DashboardResponse> {
-  const res = await callGasBackend<DashboardResponse | { ok: false; code?: string; message?: string }>(
-    {
-      action: "dashboard",
-      token,
-    },
-    onSessionExpired
-  );
+  const maxRetries = 3;
+  const retryDelays = [2000, 4000, 6000];
+  let lastError: unknown = null;
 
-  if (!res.ok) {
-    throw new Error(res.message || "Gagal memuat data dashboard");
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (attempt > 0) {
+      if (onRetry) {
+        onRetry(attempt);
+      }
+      const delay = retryDelays[attempt - 1] || 6000;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
+
+    try {
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain;charset=utf-8",
+        },
+        body: JSON.stringify({
+          action: "dashboard",
+          token,
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP_${response.status}`);
+      }
+
+      let data: any;
+      try {
+        data = await response.json();
+      } catch (jsonErr) {
+        throw new Error("INVALID_JSON_RESPONSE");
+      }
+
+      if (data && data.code === "SESSION_EXPIRED") {
+        sessionStorage.removeItem(STORAGE_KEY_TOKEN);
+        sessionStorage.removeItem(STORAGE_KEY_USER);
+        if (onSessionExpired) {
+          onSessionExpired();
+        }
+        throw new Error("SESSION_EXPIRED");
+      }
+
+      if (!data || !data.ok) {
+        throw new Error(data?.message || "INVALID_DATA");
+      }
+
+      return data as DashboardResponse;
+    } catch (err: unknown) {
+      clearTimeout(timeoutId);
+      console.error(`Percobaan load data ke-${attempt + 1} gagal:`, err);
+
+      if (err instanceof Error && err.message === "SESSION_EXPIRED") {
+        throw err;
+      }
+      lastError = err;
+    }
   }
 
-  return res;
+  throw lastError || new Error("Gagal memuat data setelah 3 kali percobaan");
 }
 
 /**

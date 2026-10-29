@@ -59,6 +59,7 @@ export const GrafikTab: React.FC<GrafikTabProps> = ({ data, period }) => {
   const isKayu = activeKey === "kayu";
   const isTembakau = activeKey === "tembakau";
   const unitLabel = isKayu ? "M³" : "Ton";
+  const showVsTl = period === "kumulatif";
 
   // Regional options
   const regionalOptions = useMemo(() => {
@@ -636,7 +637,7 @@ export const GrafikTab: React.FC<GrafikTabProps> = ({ data, period }) => {
       },
     ];
 
-    if (!isTembakau) {
+    if (!isTembakau && showVsTl) {
       series.push({
         name: "Protas Th Lalu",
         type: "bar",
@@ -687,7 +688,7 @@ export const GrafikTab: React.FC<GrafikTabProps> = ({ data, period }) => {
       },
       series,
     };
-  }, [regionalsData, isKayu, isTembakau]);
+  }, [regionalsData, isKayu, isTembakau, showVsTl]);
 
   // 6. Chart 6: Gauge Capaian 1 Jan s.d HI PTPN I
   const optionChart6 = useMemo(() => {
@@ -981,7 +982,7 @@ export const GrafikTab: React.FC<GrafikTabProps> = ({ data, period }) => {
         </div>
 
         {/* 4. Progres vs Tahun Lalu per Kebun (Diverging Bar) */}
-        {!isKayu && !isTembakau && optionChart4 && (
+        {!isKayu && !isTembakau && (
           <div className="bg-white rounded-[14px] p-4 sm:p-5 border border-[#E2E8F0] shadow-[0_2px_10px_rgba(11,31,75,0.06)] space-y-2 flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <div>
@@ -992,18 +993,26 @@ export const GrafikTab: React.FC<GrafikTabProps> = ({ data, period }) => {
                   Delta = Real thd TL - 100% (Hijau: Naik, Merah: Turun, Garis 0%)
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => downloadChart(refChart4, "4_Progres_vs_Tahun_Lalu_Kebun")}
-                className="p-1.5 rounded-lg hover:bg-slate-100 text-[#64748B] hover:text-[#0B1F4B] cursor-pointer transition-colors"
-                title="Unduh Grafik (PNG)"
-              >
-                <Download className="w-3.5 h-3.5" />
-              </button>
+              {showVsTl && optionChart4 && (
+                <button
+                  type="button"
+                  onClick={() => downloadChart(refChart4, "4_Progres_vs_Tahun_Lalu_Kebun")}
+                  className="p-1.5 rounded-lg hover:bg-slate-100 text-[#64748B] hover:text-[#0B1F4B] cursor-pointer transition-colors"
+                  title="Unduh Grafik (PNG)"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
-            <div className="h-[280px] sm:h-[340px] w-full">
-              <ReactECharts ref={refChart4} option={optionChart4} style={{ height: "100%", width: "100%" }} opts={{ renderer: "svg" }} />
-            </div>
+            {showVsTl && optionChart4 ? (
+              <div className="h-[280px] sm:h-[340px] w-full transition-opacity duration-200">
+                <ReactECharts ref={refChart4} option={optionChart4} style={{ height: "100%", width: "100%" }} opts={{ renderer: "svg" }} />
+              </div>
+            ) : (
+              <div className="py-12 px-4 flex items-center justify-center text-center text-xs text-[#94A3B8] italic font-medium bg-[#F8FAFC] rounded-xl border border-dashed border-[#CBD5E1] transition-opacity duration-200">
+                Perbandingan tahun lalu tersedia pada periode 1 Jan s/d HI
+              </div>
+            )}
           </div>
         )}
 
@@ -1016,7 +1025,7 @@ export const GrafikTab: React.FC<GrafikTabProps> = ({ data, period }) => {
                   5. PRODUKTIVITAS (PROTAS KG/HA) PER REGIONAL
                 </h3>
                 <p className="text-[10px] text-[#64748B]">
-                  Real vs RKAP {isTembakau ? "" : "vs Tahun Lalu"} &bull; Satuan KG/Ha
+                  Real vs RKAP {isTembakau || !showVsTl ? "" : "vs Tahun Lalu"} &bull; Satuan KG/Ha
                 </p>
               </div>
               <button

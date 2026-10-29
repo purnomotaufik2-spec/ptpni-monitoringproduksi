@@ -5,13 +5,16 @@
 
 import React, { useState, useEffect } from "react";
 import { Cloud, Calendar, RefreshCw } from "lucide-react";
+import { motion } from "motion/react";
 import { PeriodType, UserProfile } from "../types";
+import { TabKey } from "./BottomNav";
 import { formatIndonesianDate, formatShortDate } from "../utils/formatters";
 
 interface AppHeaderProps {
   user: UserProfile;
   reportDate: string | null;
   period: PeriodType;
+  activeTab: TabKey;
   onPeriodChange: (period: PeriodType) => void;
   onDateChange: (newDate: string) => Promise<void>;
   onRefresh: () => void;
@@ -22,10 +25,10 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   user,
   reportDate,
   period,
+  activeTab,
   onPeriodChange,
   onDateChange,
   onRefresh,
-  isUpdatingDate,
 }) => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(reportDate || "");
@@ -55,6 +58,13 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     .slice(0, 2)
     .join("")
     .toUpperCase();
+
+  // Halaman yang angkanya berubah sesuai periode: Beranda, Komoditas, Kebun, Grafik
+  const isPeriodActive =
+    activeTab === "beranda" ||
+    activeTab === "komoditas" ||
+    activeTab === "kebun" ||
+    activeTab === "grafik";
 
   return (
     <>
@@ -109,7 +119,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 type="button"
                 onClick={() => setShowDatePicker(true)}
                 className="bg-[#16306B] hover:bg-[#1E3E8A] active:scale-95 border border-white/15 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-left flex items-center gap-2 transition-all shadow-sm cursor-pointer group"
-                title="Klik untuk memilih tanggal laporan (LHP)"
+                title="Pilih tanggal laporan (LHP)"
               >
                 <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-white/10 flex items-center justify-center text-[#F5B93E]">
                   <Calendar className="w-3.5 h-3.5" />
@@ -131,7 +141,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
                 <Cloud className="w-3.5 h-3.5 text-emerald-300" />
-                <span className="hidden sm:inline">Data Live</span>
+                <span className="hidden sm:inline">Data Terkini</span>
               </div>
 
               {/* Tombol Refresh */}
@@ -160,43 +170,47 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             </div>
           </div>
 
-          {/* Segmented Control Periode di Bawah Header */}
+          {/* Segmented Control Periode / Chip Statis di Bawah Header */}
           <div className="pt-2 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-2.5">
-            <div className="bg-white/15 p-1 rounded-2xl flex items-center gap-1 border border-white/20 w-full sm:w-auto shadow-inner">
-              <button
-                type="button"
-                onClick={() => onPeriodChange("hari_ini")}
-                className={`flex-1 sm:flex-initial py-1 px-3 sm:px-4 rounded-xl text-xs font-bold transition-all text-center cursor-pointer active:scale-95 ${
-                  period === "hari_ini"
-                    ? "bg-[#0B1F4B] text-white shadow-md ring-1 ring-white/30"
-                    : "bg-white text-[#0B1F4B] hover:bg-white/90"
-                }`}
-              >
-                Hari Ini
-              </button>
-              <button
-                type="button"
-                onClick={() => onPeriodChange("bulan")}
-                className={`flex-1 sm:flex-initial py-1 px-3 sm:px-4 rounded-xl text-xs font-bold transition-all text-center cursor-pointer active:scale-95 ${
-                  period === "bulan"
-                    ? "bg-[#0B1F4B] text-white shadow-md ring-1 ring-white/30"
-                    : "bg-white text-[#0B1F4B] hover:bg-white/90"
-                }`}
-              >
-                Bulan s/d HI
-              </button>
-              <button
-                type="button"
-                onClick={() => onPeriodChange("kumulatif")}
-                className={`flex-1 sm:flex-initial py-1 px-3 sm:px-4 rounded-xl text-xs font-bold transition-all text-center cursor-pointer active:scale-95 ${
-                  period === "kumulatif"
-                    ? "bg-[#0B1F4B] text-white shadow-md ring-1 ring-white/30"
-                    : "bg-white text-[#0B1F4B] hover:bg-white/90"
-                }`}
-              >
-                1 Jan s/d HI
-              </button>
-            </div>
+            {isPeriodActive ? (
+              /* Segmented control interaktif untuk halaman Beranda, Komoditas, Kebun, Grafik */
+              <div className="bg-white/15 p-1 rounded-2xl flex items-center gap-1 border border-white/20 w-full sm:w-auto shadow-inner relative">
+                {[
+                  { key: "hari_ini", label: "Hari Ini" },
+                  { key: "bulan", label: "Bulan s/d HI" },
+                  { key: "kumulatif", label: "1 Jan s/d HI" },
+                ].map((item) => {
+                  const isActive = period === item.key;
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={() => onPeriodChange(item.key as PeriodType)}
+                      className={`relative flex-1 sm:flex-initial py-1 px-3.5 sm:px-4 rounded-xl text-xs transition-all text-center cursor-pointer active:scale-95 ${
+                        isActive
+                          ? "font-bold text-[#0B1F4B]"
+                          : "font-medium text-white/85 hover:bg-white/15"
+                      }`}
+                    >
+                      {isActive && (
+                        <motion.div
+                          layoutId="header-period-indicator"
+                          className="absolute inset-0 bg-white rounded-xl shadow-md"
+                          transition={{ type: "spring", stiffness: 450, damping: 35 }}
+                        />
+                      )}
+                      <span className="relative z-10">{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              /* Chip statis kecil untuk halaman yang tidak terpengaruh periode (Unduh/PDF, Akun) */
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#16306B]/80 border border-white/15 text-xs text-white/90 select-none shadow-xs">
+                <Calendar className="w-3.5 h-3.5 text-[#F5B93E]" />
+                <span className="font-semibold">Periode: 1 Jan s/d HI</span>
+              </div>
+            )}
 
             <div className="text-[11px] font-medium text-white/70 self-end sm:self-auto">
               PT Perkebunan Nusantara I (Persero) &bull;{" "}
@@ -215,7 +229,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               Pilih Tanggal LHP
             </h3>
             <p className="text-xs text-[#64748B] mb-4">
-              Pilih tanggal laporan untuk mengambil data produksi terkini dari backend Google Apps Script.
+              Pilih tanggal laporan untuk menampilkan data produksi komoditas.
             </p>
 
             <form onSubmit={handleDateSubmit} className="space-y-4">
@@ -248,19 +262,6 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Overlay Saat Mengubah Tanggal */}
-      {isUpdatingDate && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/60 backdrop-blur-xs">
-          <div className="glass-card p-6 rounded-[18px] shadow-2xl flex flex-col items-center gap-3 border border-white/60">
-            <div className="w-12 h-12 rounded-full bg-[#EEF2FA] flex items-center justify-center text-[#0B1F4B]">
-              <RefreshCw className="w-6 h-6 animate-spin" />
-            </div>
-            <p className="text-sm font-bold text-[#0B1F4B]">Memperbarui data...</p>
-            <p className="text-xs text-[#64748B]">Menyinkronkan data produksi dari backend</p>
           </div>
         </div>
       )}

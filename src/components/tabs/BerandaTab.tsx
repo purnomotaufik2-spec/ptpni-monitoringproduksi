@@ -27,6 +27,7 @@ import {
   formatCompactNumber,
   getStatus,
   getPreviousYearProgress,
+  getPeriodValues,
 } from "../../utils/formatters";
 import { CommodityIcon, getCommodityCursorStyle } from "../CommodityIcons";
 import { AnimatedCounter } from "../AnimatedCounter";
@@ -40,6 +41,7 @@ interface BerandaTabProps {
 
 export const BerandaTab: React.FC<BerandaTabProps> = ({
   data,
+  period,
   onNavigateCommodity,
   onNavigateToKebunWithFilter,
 }) => {
@@ -56,6 +58,11 @@ export const BerandaTab: React.FC<BerandaTabProps> = ({
   const currentMeta = selectedFilter !== "semua" ? COMMODITIES_METADATA[selectedFilter] : null;
   const isSelectedKayu = selectedFilter === "kayu";
 
+  const periodLabel = period === "hari_ini" ? "Hari Ini" : period === "bulan" ? "Bulan s/d HI" : "1 Jan s/d HI";
+  const realLabel = period === "hari_ini" ? "Real Hari Ini" : period === "bulan" ? "Real Bulan s/d HI" : "Real 1 Jan s/d HI";
+  const rkapLabel = period === "hari_ini" ? "RKAP Hari Ini" : period === "bulan" ? "RKAP Bulan s/d HI" : "RKAP 1 Jan s/d HI";
+  const showVsTl = period === "kumulatif";
+
   // Data Papan Indeks 6 Komoditas saat "semua"
   const indexBoardData = useMemo(() => {
     return ALL_COMMODITY_KEYS.map((key) => {
@@ -64,10 +71,13 @@ export const BerandaTab: React.FC<BerandaTabProps> = ({
       const grand = comm?.grandTotal;
       const isKayu = key === "kayu";
 
-      // 1 Jan s.d HI metrics
-      const rawReal = grand?.productionActualYtd ?? null;
-      const rawRkap = grand?.productionRkapYtd ?? null;
-      const capaian = grand?.achievementYtd ?? null;
+      // Metrik sesuai periode aktif
+      const pVals = grand
+        ? getPeriodValues(grand, period)
+        : { actual: null, rkap: null, achievement: null };
+      const rawReal = pVals.actual;
+      const rawRkap = pVals.rkap;
+      const capaian = pVals.achievement;
       const achVsTL = grand?.achievementVsPreviousYear ?? null;
       const rawProtas = grand?.productivityActual ?? null;
 
@@ -109,14 +119,19 @@ export const BerandaTab: React.FC<BerandaTabProps> = ({
       // Protas 0 / null -> "—"
       const protasText = rawProtas === null || rawProtas === 0 ? "—" : `${formatRawNumber(rawProtas)} KG/Ha`;
 
-      // Perhitungan khusus kayu
+      // Perhitungan khusus kayu sesuai periode
       let activeSpeciesCount = 0;
       let topSpeciesName = "—";
       let topSpeciesVol = 0;
 
       if (isKayu && grand?.species) {
         grand.species.forEach((s) => {
-          const val = s.ytd || 0;
+          const val =
+            period === "hari_ini"
+              ? s.today || 0
+              : period === "bulan"
+              ? s.toDate || 0
+              : s.ytd || 0;
           if (val > 0) activeSpeciesCount++;
           if (val > topSpeciesVol) {
             topSpeciesVol = val;
@@ -149,7 +164,7 @@ export const BerandaTab: React.FC<BerandaTabProps> = ({
         available: comm?.available ?? false,
       };
     });
-  }, [data]);
+  }, [data, period]);
 
   // Chart Semua Komoditas: Capaian thd RKAP per Komoditas (horizontal bar)
   const optionChartSemuaKomoditas = useMemo(() => {
@@ -263,8 +278,8 @@ export const BerandaTab: React.FC<BerandaTabProps> = ({
 
     if (isSelectedKayu) {
       const valid = units
-        .filter((u) => u.productionActualYtd !== null && !isNaN(u.productionActualYtd))
-        .sort((a, b) => (b.productionActualYtd || 0) - (a.productionActualYtd || 0));
+        .filter((u) => getPeriodValues(u, period).actual !== null && !isNaN(getPeriodValues(u, period).actual!))
+        .sort((a, b) => (getPeriodValues(b, period).actual || 0) - (getPeriodValues(a, period).actual || 0));
 
       return {
         top5: valid.slice(0, 5),
@@ -275,8 +290,8 @@ export const BerandaTab: React.FC<BerandaTabProps> = ({
     }
 
     const valid = units
-      .filter((u) => u.achievementYtd !== null && !isNaN(u.achievementYtd))
-      .sort((a, b) => (b.achievementYtd || 0) - (a.achievementYtd || 0));
+      .filter((u) => getPeriodValues(u, period).achievement !== null && !isNaN(getPeriodValues(u, period).achievement!))
+      .sort((a, b) => (getPeriodValues(b, period).achievement || 0) - (getPeriodValues(a, period).achievement || 0));
 
     return {
       top5: valid.slice(0, 5),
@@ -284,7 +299,7 @@ export const BerandaTab: React.FC<BerandaTabProps> = ({
       nullCount: totalUnits - valid.length,
       totalUnits,
     };
-  }, [currentComm, isSelectedKayu]);
+  }, [currentComm, isSelectedKayu, period]);
 
   // Insight otomatis (CATATAN) saat 1 komoditas dipilih
   const autoNote = useMemo(() => {
@@ -326,7 +341,7 @@ export const BerandaTab: React.FC<BerandaTabProps> = ({
 
     const list = currentComm.regionals
       .map((r) => {
-        const val = r.productionActualYtd;
+        const val = getPeriodValues(r, period).actual;
         return {
           name: r.name,
           value: val !== null ? (isSelectedKayu ? val : val / 1000) : 0,
@@ -380,24 +395,24 @@ export const BerandaTab: React.FC<BerandaTabProps> = ({
         },
       ],
     };
-  }, [currentComm, isSelectedKayu]);
+  }, [currentComm, isSelectedKayu, period]);
 
   // Chart Grouped Bar Real vs RKAP per Kebun saat 1 komoditas dipilih
   const optionGroupedBarKebun = useMemo(() => {
     if (!currentComm?.units || currentComm.units.length === 0) return null;
 
     const sortedUnits = [...currentComm.units]
-      .filter((u) => u.productionActualYtd !== null)
-      .sort((a, b) => (b.productionActualYtd || 0) - (a.productionActualYtd || 0))
+      .filter((u) => getPeriodValues(u, period).actual !== null)
+      .sort((a, b) => (getPeriodValues(b, period).actual || 0) - (getPeriodValues(a, period).actual || 0))
       .slice(0, 16);
 
     const categories = sortedUnits.map((u) => u.name);
     const realVals = sortedUnits.map((u) => {
-      const v = u.productionActualYtd;
+      const v = getPeriodValues(u, period).actual;
       return v !== null ? (isSelectedKayu ? v : v / 1000) : 0;
     });
     const rkapVals = sortedUnits.map((u) => {
-      const v = u.productionRkapYtd;
+      const v = getPeriodValues(u, period).rkap;
       return v !== null ? (isSelectedKayu ? 0 : v / 1000) : 0;
     });
 
@@ -488,7 +503,7 @@ export const BerandaTab: React.FC<BerandaTabProps> = ({
           : []),
       ],
     };
-  }, [currentComm, isSelectedKayu]);
+  }, [currentComm, isSelectedKayu, period]);
 
   return (
     <motion.div
@@ -545,6 +560,21 @@ export const BerandaTab: React.FC<BerandaTabProps> = ({
       {/* 2. JIKA "SEMUA" DIPILIH — PAPAN INDEKS 6 KOMODITAS */}
       {selectedFilter === "semua" && (
         <div className="space-y-6">
+          {/* Banner jika data periode terpilih belum diinput */}
+          {indexBoardData.every((c) => c.isRealEmpty) && (
+            <div className="bg-amber-50/85 border border-amber-200 rounded-2xl p-4 flex items-center gap-3 text-amber-900 shadow-xs">
+              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+              <div>
+                <h4 className="text-xs font-bold text-amber-900">
+                  Data {periodLabel.toLowerCase()} belum diinput
+                </h4>
+                <p className="text-[11px] text-amber-700 mt-0.5">
+                  Laporan produksi periode {periodLabel.toLowerCase()} belum tercatat di sistem. Angka akan otomatis tampil setelah data diinput.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Grid 6 Kartu Simetris Sama Ukuran */}
           <section
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
@@ -596,10 +626,10 @@ export const BerandaTab: React.FC<BerandaTabProps> = ({
                       </span>
                     </div>
 
-                    {/* Metrik Realisasi 1 Jan s.d HI */}
+                    {/* Metrik Realisasi Sesuai Periode Aktif */}
                     <div>
                       <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B] block mb-0.5">
-                        {item.isKayu ? "Real 1 Jan s.d BI" : "Real 1 Jan s.d HI"}
+                        {item.isKayu ? realLabel.replace("HI", "BI") : realLabel}
                       </span>
 
                       {item.isRealEmpty ? (
@@ -653,15 +683,17 @@ export const BerandaTab: React.FC<BerandaTabProps> = ({
                             </span>
                           </div>
 
-                          {/* Panah Progres vs TL */}
-                          <div
-                            className="inline-flex items-center gap-1 text-xs font-semibold"
-                            style={{ color: item.progress.color }}
-                            title={item.progress.tooltip}
-                          >
-                            <span>{item.progress.arrow}</span>
-                            <span>{item.progress.text}</span>
-                          </div>
+                          {/* Panah Progres vs TL (Hanya saat 1 Jan s/d HI) */}
+                          {showVsTl && (
+                            <div
+                              className="inline-flex items-center gap-1 text-xs font-semibold transition-opacity duration-200"
+                              style={{ color: item.progress.color }}
+                              title={item.progress.tooltip}
+                            >
+                              <span>{item.progress.arrow}</span>
+                              <span>{item.progress.text}</span>
+                            </div>
+                          )}
                         </div>
 
                         {/* Progress Bar Capaian */}
@@ -697,7 +729,7 @@ export const BerandaTab: React.FC<BerandaTabProps> = ({
                     {!item.isKayu && (
                       <div className="pt-2 border-t border-[#E2E8F0] flex items-center justify-between text-xs text-[#64748B]">
                         <div>
-                          RKAP:{" "}
+                          {rkapLabel}:{" "}
                           <b className="text-[#0B1F4B]">
                             {item.isRkapEmpty
                               ? "—"
@@ -805,8 +837,11 @@ export const BerandaTab: React.FC<BerandaTabProps> = ({
             {/* Kartu 3: CAPAIAN THD RKAP */}
             <div className="glass-card interactive-card rounded-[18px] p-4 sm:p-5 flex items-center gap-4">
               {(() => {
-                const ach = currentComm.grandTotal?.achievementYtd ?? null;
-                const rkap = currentComm.grandTotal?.productionRkapYtd ?? null;
+                const pVals = currentComm.grandTotal
+                  ? getPeriodValues(currentComm.grandTotal, period)
+                  : { actual: null, rkap: null, achievement: null };
+                const ach = pVals.achievement;
+                const rkap = pVals.rkap;
                 const st = getStatus(ach, !isSelectedKayu, rkap);
                 const prog = getPreviousYearProgress(
                   currentComm.grandTotal?.achievementVsPreviousYear,
@@ -834,13 +869,15 @@ export const BerandaTab: React.FC<BerandaTabProps> = ({
                       >
                         {ach !== null && !isSelectedKayu ? `${st.arrow} ${fmtDec(ach)}%` : "—"}
                       </div>
-                      <div
-                        className="text-[11px] mt-0.5 font-semibold flex items-center gap-1.5"
-                        style={{ color: prog.color }}
-                      >
-                        <span>{prog.arrow}</span>
-                        <span>{prog.text}</span>
-                      </div>
+                      {showVsTl && (
+                        <div
+                          className="text-[11px] mt-0.5 font-semibold flex items-center gap-1.5 transition-opacity duration-200"
+                          style={{ color: prog.color }}
+                        >
+                          <span>{prog.arrow}</span>
+                          <span>{prog.text}</span>
+                        </div>
+                      )}
                     </div>
                   </>
                 );
@@ -933,8 +970,9 @@ export const BerandaTab: React.FC<BerandaTabProps> = ({
 
                 <div className="space-y-1.5">
                   {singleCommRanking.top5.map((u, idx) => {
-                    const ach = isSelectedKayu ? u.productionActualYtd : u.achievementYtd;
-                    const st = getStatus(ach, !isSelectedKayu);
+                    const pVals = getPeriodValues(u, period);
+                    const ach = isSelectedKayu ? pVals.actual : pVals.achievement;
+                    const st = getStatus(ach, !isSelectedKayu, pVals.rkap);
                     const prog = getPreviousYearProgress(
                       u.achievementVsPreviousYear,
                       !isSelectedKayu && selectedFilter !== "tembakau"
@@ -960,10 +998,10 @@ export const BerandaTab: React.FC<BerandaTabProps> = ({
                             className="font-bold text-xs tabular-nums"
                             style={{ color: isSelectedKayu ? "#0B1F4B" : st.color }}
                           >
-                            {isSelectedKayu ? `${fmtDec(u.productionActualYtd)} M³` : `${st.arrow} ${fmtDec(ach)}%`}
+                            {isSelectedKayu ? `${fmtDec(pVals.actual)} M³` : `${st.arrow} ${fmtDec(ach)}%`}
                           </div>
-                          {!isSelectedKayu && prog.hasData && (
-                            <div className="text-[10px] font-semibold" style={{ color: prog.color }}>
+                          {showVsTl && !isSelectedKayu && prog.hasData && (
+                            <div className="text-[10px] font-semibold transition-opacity duration-200" style={{ color: prog.color }}>
                               {prog.text}
                             </div>
                           )}
@@ -1002,8 +1040,9 @@ export const BerandaTab: React.FC<BerandaTabProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
               {singleCommRanking.bottom5.map((u, idx) => {
-                const ach = isSelectedKayu ? u.productionActualYtd : u.achievementYtd;
-                const st = getStatus(ach, !isSelectedKayu);
+                const pVals = getPeriodValues(u, period);
+                const ach = isSelectedKayu ? pVals.actual : pVals.achievement;
+                const st = getStatus(ach, !isSelectedKayu, pVals.rkap);
                 const prog = getPreviousYearProgress(
                   u.achievementVsPreviousYear,
                   !isSelectedKayu && selectedFilter !== "tembakau"
@@ -1024,7 +1063,7 @@ export const BerandaTab: React.FC<BerandaTabProps> = ({
                     <div>
                       <h4 className="font-bold text-xs text-[#0B1F4B] truncate">{u.name}</h4>
                       <div className="text-[10px] text-[#64748B]">
-                        Real: <b>{formatProductionNumber(u.productionActualYtd, currentComm.unit)}</b>{" "}
+                        Real: <b>{formatProductionNumber(pVals.actual, currentComm.unit)}</b>{" "}
                         {currentComm.unit === "M3" ? "M³" : "Ton"}
                       </div>
                     </div>
@@ -1037,11 +1076,11 @@ export const BerandaTab: React.FC<BerandaTabProps> = ({
                           color: isSelectedKayu ? "#0B1F4B" : st.textColor,
                         }}
                       >
-                        {isSelectedKayu ? `${fmtDec(u.productionActualYtd)} M³` : `${st.arrow} ${fmtDec(ach)}%`}
+                        {isSelectedKayu ? `${fmtDec(pVals.actual)} M³` : `${st.arrow} ${fmtDec(ach)}%`}
                       </div>
 
-                      {!isSelectedKayu && prog.hasData && (
-                        <span className="text-[10px] font-bold" style={{ color: prog.color }}>
+                      {showVsTl && !isSelectedKayu && prog.hasData && (
+                        <span className="text-[10px] font-bold transition-opacity duration-200" style={{ color: prog.color }}>
                           {prog.text}
                         </span>
                       )}

@@ -21,6 +21,7 @@ import {
   formatProductionNumber,
   getStatus,
   getPreviousYearProgress,
+  getPeriodValues,
 } from "../../utils/formatters";
 import { CommodityKpiPanel } from "../CommodityKpiPanel";
 import { FullDataTable } from "../FullDataTable";
@@ -49,6 +50,7 @@ export const KomoditasTab: React.FC<KomoditasTabProps> = ({
   const meta = COMMODITIES_METADATA[activeKey];
   const isKayu = activeKey === "kayu";
   const isTembakau = activeKey === "tembakau";
+  const showVsTl = period === "kumulatif";
 
   // Reset drill-down saat berpindah komoditas
   const handleSelectCommodity = (key: CommodityKey) => {
@@ -57,24 +59,24 @@ export const KomoditasTab: React.FC<KomoditasTabProps> = ({
     setSelectedUnit(null);
   };
 
-  // Sort kartu regional (selalu berdasarkan 1 Jan s.d HI)
+  // Sort kartu regional sesuai periode aktif
   const sortedRegionals = React.useMemo(() => {
     if (!currentCommodity?.regionals) return [];
     const list = [...currentCommodity.regionals];
 
     switch (regionalSort) {
       case "capaian_desc":
-        return list.sort((a, b) => (b.achievementYtd || 0) - (a.achievementYtd || 0));
+        return list.sort((a, b) => (getPeriodValues(b, period).achievement || 0) - (getPeriodValues(a, period).achievement || 0));
       case "capaian_asc":
-        return list.sort((a, b) => (a.achievementYtd || 0) - (b.achievementYtd || 0));
+        return list.sort((a, b) => (getPeriodValues(a, period).achievement || 0) - (getPeriodValues(b, period).achievement || 0));
       case "realisasi_desc":
-        return list.sort((a, b) => (b.productionActualYtd || 0) - (a.productionActualYtd || 0));
+        return list.sort((a, b) => (getPeriodValues(b, period).actual || 0) - (getPeriodValues(a, period).actual || 0));
       case "nama_asc":
         return list.sort((a, b) => a.name.localeCompare(b.name));
       default:
         return list;
     }
-  }, [currentCommodity, regionalSort]);
+  }, [currentCommodity, regionalSort, period]);
 
   // Unit kebun dalam regional yang sedang dipilih
   const unitsInSelectedRegional = React.useMemo(() => {
@@ -258,7 +260,7 @@ export const KomoditasTab: React.FC<KomoditasTabProps> = ({
               Sembunyikan
             </button>
           </div>
-          <FullDataTable commodity={currentCommodity} />
+          <FullDataTable commodity={currentCommodity} period={period} />
         </section>
       )}
 
@@ -300,10 +302,11 @@ export const KomoditasTab: React.FC<KomoditasTabProps> = ({
           {!selectedRegional ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" style={{ gridAutoRows: "1fr" }}>
               {sortedRegionals.map((reg) => {
-                const realVal = reg.productionActualYtd;
-                const achVal = reg.achievementYtd;
+                const pVals = getPeriodValues(reg, period);
+                const realVal = pVals.actual;
+                const achVal = pVals.achievement;
                 const vsTl = reg.achievementVsPreviousYear;
-                const st = getStatus(achVal, currentCommodity.hasRkap);
+                const st = getStatus(achVal, currentCommodity.hasRkap, pVals.rkap);
                 const prog = getPreviousYearProgress(vsTl, !isKayu && !isTembakau);
 
                 const unitCountInReg = (currentCommodity.units || []).filter(
@@ -327,10 +330,10 @@ export const KomoditasTab: React.FC<KomoditasTabProps> = ({
                         </span>
                       </div>
 
-                      {/* Real 1 Jan s.d HI */}
+                      {/* Realisasi Sesuai Periode Aktif */}
                       <div className="mb-2.5">
                         <span className="text-[10px] uppercase font-bold text-[#64748B] block">
-                          Real 1 Jan s.d HI
+                          {period === "hari_ini" ? "Real Hari Ini" : period === "bulan" ? "Real Bulan s/d HI" : "Real 1 Jan s/d HI"}
                         </span>
                         <div className="flex items-baseline gap-1 mt-0.5">
                           <span className="text-xl font-black text-[#0B1F4B] tabular-nums">
@@ -357,9 +360,9 @@ export const KomoditasTab: React.FC<KomoditasTabProps> = ({
                           >
                             {st.formatted}
                           </span>
-                          {!isTembakau && prog.hasData && (
+                          {showVsTl && !isTembakau && prog.hasData && (
                             <span
-                              className="block text-[10px] font-bold tabular-nums"
+                              className="block text-[10px] font-bold tabular-nums transition-opacity duration-200"
                               style={{ color: prog.color }}
                               title={prog.tooltip}
                             >
@@ -384,10 +387,11 @@ export const KomoditasTab: React.FC<KomoditasTabProps> = ({
             /* Grid Kebun di Regional Terpilih */
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" style={{ gridAutoRows: "1fr" }}>
               {unitsInSelectedRegional.map((u) => {
-                const realVal = u.productionActualYtd;
-                const achVal = u.achievementYtd;
+                const pVals = getPeriodValues(u, period);
+                const realVal = pVals.actual;
+                const achVal = pVals.achievement;
                 const vsTl = u.achievementVsPreviousYear;
-                const st = getStatus(achVal, currentCommodity.hasRkap);
+                const st = getStatus(achVal, currentCommodity.hasRkap, pVals.rkap);
                 const prog = getPreviousYearProgress(vsTl, !isKayu && !isTembakau);
 
                 return (
