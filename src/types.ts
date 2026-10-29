@@ -93,6 +93,7 @@ export type ExportPdfFile = {
 
 export type ExportPdfResponse = {
   ok: boolean;
+  dateLabel?: string;
   reportDate?: string;
   files?: ExportPdfFile[];
   missing?: string[];
@@ -107,6 +108,7 @@ export type ExportXlsxFile = {
 
 export type ExportXlsxResponse = {
   ok: boolean;
+  dateLabel?: string;
   reportDate?: string;
   file?: ExportXlsxFile;
   included?: string[];

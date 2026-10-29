@@ -69,11 +69,11 @@ export default function App() {
     }, 2500);
   };
 
-  // Bersihkan sesi jika token expired
-  const handleSessionExpired = useCallback(() => {
+  // Bersihkan sesi jika token expired atau akun login dari perangkat lain
+  const handleSessionExpired = useCallback((customMsg?: string) => {
     setToken(null);
     setDashboardData(null);
-    setErrorNotice("Sesi berakhir, silakan masuk kembali.");
+    setErrorNotice(customMsg || "Sesi berakhir, silakan masuk kembali.");
   }, []);
 
   // Memuat data dashboard dengan retry otomatis
@@ -95,7 +95,22 @@ export default function App() {
         setDashboardData(response);
       } catch (err: unknown) {
         console.error("[Dashboard Fetch Error]:", err);
-        setErrorNotice("Data belum dapat ditampilkan");
+        const errMsg = err instanceof Error ? err.message : "";
+        if (
+          errMsg === "SESSION_EXPIRED" ||
+          errMsg.toLowerCase().includes("perangkat lain") ||
+          errMsg.toLowerCase().includes("sesi") ||
+          errMsg.toLowerCase().includes("kedaluwarsa") ||
+          errMsg.toLowerCase().includes("diakhiri")
+        ) {
+          handleSessionExpired(
+            errMsg !== "SESSION_EXPIRED" && errMsg
+              ? errMsg
+              : "Sesi berakhir, silakan masuk kembali."
+          );
+        } else {
+          setErrorNotice("Data belum dapat ditampilkan");
+        }
       } finally {
         setIsLoading(false);
         setInitLoading(false);

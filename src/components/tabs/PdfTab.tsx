@@ -104,7 +104,7 @@ interface GeneratedExcelFile {
 interface PdfTabProps {
   token: string | null;
   reportDate: string | null;
-  onSessionExpired?: () => void;
+  onSessionExpired?: (msg?: string) => void;
 }
 
 export const PdfTab: React.FC<PdfTabProps> = ({ token, reportDate, onSessionExpired }) => {
@@ -140,16 +140,42 @@ export const PdfTab: React.FC<PdfTabProps> = ({ token, reportDate, onSessionExpi
 
   const [showConfetti, setShowConfetti] = useState<boolean>(false);
 
-  // Format dd.MM dari reportDate
-  const formatDdMm = (dateStr: string | null | undefined): string => {
-    if (!dateStr) return "29.09";
-    const parts = dateStr.split("T")[0].split("-");
-    if (parts.length === 3) {
-      const day = parts[2].padStart(2, "0");
-      const month = parts[1].padStart(2, "0");
-      return `${day}.${month}`;
+  // Helper untuk teks petunjuk di samping checkbox "Gabung semua..." sesuai tanggal aktif:
+  // jika reportDate ada → dd.MM dari reportDate;
+  // jika tidak ada → dd.MM dari H-1 hari ini (zona Asia/Jakarta).
+  const getActiveDdMm = (dateStr: string | null | undefined): string => {
+    if (dateStr) {
+      const cleaned = dateStr.split("T")[0].split(" ")[0];
+      const parts = cleaned.split("-");
+      if (parts.length === 3) {
+        const day = parts[2].padStart(2, "0");
+        const month = parts[1].padStart(2, "0");
+        return `${day}.${month}`;
+      }
     }
-    return "29.09";
+
+    // H-1 hari ini dalam zona waktu Asia/Jakarta
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Jakarta",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    const parts = formatter.formatToParts(now);
+    let year = 2026;
+    let month = 1;
+    let day = 1;
+    for (const p of parts) {
+      if (p.type === "year") year = parseInt(p.value, 10);
+      if (p.type === "month") month = parseInt(p.value, 10);
+      if (p.type === "day") day = parseInt(p.value, 10);
+    }
+    const jakartaDate = new Date(Date.UTC(year, month - 1, day));
+    jakartaDate.setUTCDate(jakartaDate.getUTCDate() - 1);
+    const d = String(jakartaDate.getUTCDate()).padStart(2, "0");
+    const m = String(jakartaDate.getUTCMonth() + 1).padStart(2, "0");
+    return `${d}.${m}`;
   };
 
   // Helper konversi base64 ke Uint8Array
@@ -276,8 +302,7 @@ export const PdfTab: React.FC<PdfTabProps> = ({ token, reportDate, onSessionExpi
       const missing = res.missing || [];
       setMissingSheets(missing);
 
-      const effectiveDate = res.reportDate || reportDate;
-      const ddMm = formatDdMm(effectiveDate);
+      const dateLabel = res.dateLabel || getActiveDdMm(res.reportDate || reportDate);
 
       const readyFiles: GeneratedPdfFile[] = [];
 
@@ -289,7 +314,7 @@ export const PdfTab: React.FC<PdfTabProps> = ({ token, reportDate, onSessionExpi
           const blob = createPdfBlob(bytes);
           readyFiles.push({
             commodityName: "Karet",
-            filename: `LHP_KARET_${ddMm}.pdf`,
+            filename: f.filename || `LHP_KARET_${dateLabel}.pdf`,
             blob,
             sizeKb: Math.round(blob.size / 1024),
           });
@@ -304,7 +329,7 @@ export const PdfTab: React.FC<PdfTabProps> = ({ token, reportDate, onSessionExpi
           const blob = createPdfBlob(bytes);
           readyFiles.push({
             commodityName: "Teh",
-            filename: `LHP_TEH_${ddMm}.pdf`,
+            filename: f.filename || `LHP_TEH_${dateLabel}.pdf`,
             blob,
             sizeKb: Math.round(blob.size / 1024),
           });
@@ -321,7 +346,7 @@ export const PdfTab: React.FC<PdfTabProps> = ({ token, reportDate, onSessionExpi
           const blob = createPdfBlob(bytes);
           readyFiles.push({
             commodityName: "Kopi (Arabika & Robusta)",
-            filename: `LHP_KOPI_${ddMm}.pdf`,
+            filename: f.filename || `LHP_KOPI_${dateLabel}.pdf`,
             blob,
             sizeKb: Math.round(blob.size / 1024),
           });
@@ -336,7 +361,7 @@ export const PdfTab: React.FC<PdfTabProps> = ({ token, reportDate, onSessionExpi
           const blob = createPdfBlob(bytes);
           readyFiles.push({
             commodityName: "Tembakau",
-            filename: `LHP_TEMBAKAU_${ddMm}.pdf`,
+            filename: f.filename || `LHP_TEMBAKAU_${dateLabel}.pdf`,
             blob,
             sizeKb: Math.round(blob.size / 1024),
           });
@@ -351,7 +376,7 @@ export const PdfTab: React.FC<PdfTabProps> = ({ token, reportDate, onSessionExpi
           const blob = createPdfBlob(bytes);
           readyFiles.push({
             commodityName: "Kayu",
-            filename: `LHP_KAYU_${ddMm}.pdf`,
+            filename: f.filename || `LHP_KAYU_${dateLabel}.pdf`,
             blob,
             sizeKb: Math.round(blob.size / 1024),
           });
@@ -379,7 +404,7 @@ export const PdfTab: React.FC<PdfTabProps> = ({ token, reportDate, onSessionExpi
 
         const singleMergedFile: GeneratedPdfFile = {
           commodityName: "Semua Komoditas (Gabungan)",
-          filename: `LHP_PTPN1_${ddMm}.pdf`,
+          filename: `LHP_PTPN1_${res.dateLabel || dateLabel}.pdf`,
           blob: mergedAllBlob,
           sizeKb: Math.round(mergedAllBlob.size / 1024),
         };
@@ -704,7 +729,10 @@ export const PdfTab: React.FC<PdfTabProps> = ({ token, reportDate, onSessionExpi
               />
               <span className="text-xs font-semibold text-[#0B1F4B]">
                 Gabung semua komoditas terpilih menjadi <b>SATU berkas PDF</b> (
-                <span className="font-mono text-[11px]">LHP_PTPN1_{formatDdMm(reportDate)}.pdf</span>)
+                <span className="font-mono text-[11px]">
+                  {`LHP_PTPN1_${getActiveDdMm(reportDate)}.pdf`}
+                </span>
+                )
               </span>
             </label>
           </div>

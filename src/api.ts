@@ -19,11 +19,42 @@ export const STORAGE_KEY_TOKEN = "ptpn_auth_token";
 export const STORAGE_KEY_USER = "ptpn_user_profile";
 
 /**
+ * Helper untuk memeriksa apakah respons backend menandakan sesi berakhir / diputus
+ * (misal karena token kedaluwarsa atau akun login dari perangkat lain).
+ */
+export function isSessionExpiredResponse(data: any): boolean {
+  if (!data) return false;
+  if (
+    data.code === "SESSION_EXPIRED" ||
+    data.code === "SESSION_KILLED" ||
+    data.code === "SESSION_OVERWRITTEN" ||
+    data.code === "INVALID_TOKEN" ||
+    data.code === "TOKEN_EXPIRED"
+  ) {
+    return true;
+  }
+  if (typeof data.message === "string") {
+    const msg = data.message.toLowerCase();
+    if (
+      msg.includes("perangkat lain") ||
+      msg.includes("sesi ini telah diakhiri") ||
+      msg.includes("sesi anda telah kedaluwarsa") ||
+      msg.includes("sesi berakhir") ||
+      msg.includes("token tidak valid") ||
+      msg.includes("token kedaluwarsa")
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Handler pemanggilan API Google Apps Script.
  * Menggunakan method POST dan Content-Type: text/plain;charset=utf-8
  * agar tidak memicu CORS preflight browser.
  */
-async function callGasBackend<T>(payload: Record<string, unknown>, onSessionExpired?: () => void): Promise<T> {
+async function callGasBackend<T>(payload: Record<string, unknown>, onSessionExpired?: (msg?: string) => void): Promise<T> {
   const response = await fetch(API_URL, {
     method: "POST",
     headers: {
@@ -38,14 +69,18 @@ async function callGasBackend<T>(payload: Record<string, unknown>, onSessionExpi
 
   const data = await response.json();
 
-  // Deteksi sesi kedaluwarsa
-  if (data && data.code === "SESSION_EXPIRED") {
+  // Deteksi sesi kedaluwarsa atau akun login dari perangkat lain
+  if (isSessionExpiredResponse(data)) {
     sessionStorage.removeItem(STORAGE_KEY_TOKEN);
     sessionStorage.removeItem(STORAGE_KEY_USER);
+    const expiredMsg =
+      typeof data.message === "string" && data.message.length > 0
+        ? data.message
+        : "Sesi login telah kedaluwarsa. Silakan masuk kembali.";
     if (onSessionExpired) {
-      onSessionExpired();
+      onSessionExpired(expiredMsg);
     }
-    throw new Error("Sesi login telah kedaluwarsa. Silakan masuk kembali.");
+    throw new Error(expiredMsg);
   }
 
   return data as T;
@@ -74,7 +109,7 @@ export async function apiLogin(
  */
 export async function apiGetDashboard(
   token: string,
-  onSessionExpired?: () => void,
+  onSessionExpired?: (msg?: string) => void,
   onRetry?: (attempt: number) => void
 ): Promise<DashboardResponse> {
   const maxRetries = 3;
@@ -119,13 +154,17 @@ export async function apiGetDashboard(
         throw new Error("INVALID_JSON_RESPONSE");
       }
 
-      if (data && data.code === "SESSION_EXPIRED") {
+      if (isSessionExpiredResponse(data)) {
         sessionStorage.removeItem(STORAGE_KEY_TOKEN);
         sessionStorage.removeItem(STORAGE_KEY_USER);
+        const expiredMsg =
+          typeof data.message === "string" && data.message.length > 0
+            ? data.message
+            : "Sesi berakhir, silakan masuk kembali.";
         if (onSessionExpired) {
-          onSessionExpired();
+          onSessionExpired(expiredMsg);
         }
-        throw new Error("SESSION_EXPIRED");
+        throw new Error(expiredMsg);
       }
 
       if (!data || !data.ok) {
@@ -137,7 +176,14 @@ export async function apiGetDashboard(
       clearTimeout(timeoutId);
       console.error(`Percobaan load data ke-${attempt + 1} gagal:`, err);
 
-      if (err instanceof Error && err.message === "SESSION_EXPIRED") {
+      const errMsg = err instanceof Error ? err.message : "";
+      if (
+        errMsg === "SESSION_EXPIRED" ||
+        errMsg.toLowerCase().includes("perangkat lain") ||
+        errMsg.toLowerCase().includes("sesi") ||
+        errMsg.toLowerCase().includes("kedaluwarsa") ||
+        errMsg.toLowerCase().includes("diakhiri")
+      ) {
         throw err;
       }
       lastError = err;
@@ -154,7 +200,7 @@ export async function apiGetDashboard(
 export async function apiSetDate(
   token: string,
   date: string,
-  onSessionExpired?: () => void
+  onSessionExpired?: (msg?: string) => void
 ): Promise<DashboardResponse> {
   const res = await callGasBackend<DashboardResponse | { ok: false; code?: string; message?: string }>(
     {
@@ -198,7 +244,7 @@ export async function apiLogout(token: string): Promise<void> {
 export async function exportPdf(
   token: string,
   sheets: string[],
-  onSessionExpired?: () => void
+  onSessionExpired?: (msg?: string) => void
 ): Promise<ExportPdfResponse> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 120000);
@@ -225,13 +271,17 @@ export async function exportPdf(
 
     const data = await response.json();
 
-    if (data && data.code === "SESSION_EXPIRED") {
+    if (isSessionExpiredResponse(data)) {
       sessionStorage.removeItem(STORAGE_KEY_TOKEN);
       sessionStorage.removeItem(STORAGE_KEY_USER);
+      const expiredMsg =
+        typeof data.message === "string" && data.message.length > 0
+          ? data.message
+          : "Sesi login telah kedaluwarsa. Silakan masuk kembali.";
       if (onSessionExpired) {
-        onSessionExpired();
+        onSessionExpired(expiredMsg);
       }
-      throw new Error("Sesi login telah kedaluwarsa. Silakan masuk kembali.");
+      throw new Error(expiredMsg);
     }
 
     return data as ExportPdfResponse;
@@ -252,7 +302,7 @@ export async function exportPdf(
 export async function exportXlsx(
   token: string,
   sheets: string[],
-  onSessionExpired?: () => void
+  onSessionExpired?: (msg?: string) => void
 ): Promise<ExportXlsxResponse> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 120000);
@@ -279,13 +329,17 @@ export async function exportXlsx(
 
     const data = await response.json();
 
-    if (data && data.code === "SESSION_EXPIRED") {
+    if (isSessionExpiredResponse(data)) {
       sessionStorage.removeItem(STORAGE_KEY_TOKEN);
       sessionStorage.removeItem(STORAGE_KEY_USER);
+      const expiredMsg =
+        typeof data.message === "string" && data.message.length > 0
+          ? data.message
+          : "Sesi login telah kedaluwarsa. Silakan masuk kembali.";
       if (onSessionExpired) {
-        onSessionExpired();
+        onSessionExpired(expiredMsg);
       }
-      throw new Error("Sesi login telah kedaluwarsa. Silakan masuk kembali.");
+      throw new Error(expiredMsg);
     }
 
     return data as ExportXlsxResponse;
