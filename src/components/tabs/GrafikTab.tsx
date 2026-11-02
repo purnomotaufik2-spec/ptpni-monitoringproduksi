@@ -925,7 +925,7 @@ export const GrafikTab: React.FC<GrafikTabProps> = ({
       </section>
 
       {/* Grid Grafik Responsif (Uniform Height 340px / 280px on HP) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" data-no-swipe="true">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* 1. Realisasi vs RKAP per Regional */}
         <div className="bg-white rounded-[14px] p-4 sm:p-5 border border-[#E2E8F0] shadow-[0_2px_10px_rgba(11,31,75,0.06)] space-y-2 flex flex-col justify-between">
           <div className="flex items-center justify-between">

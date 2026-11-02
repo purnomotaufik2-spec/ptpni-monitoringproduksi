@@ -24,8 +24,9 @@ import {
 } from "./api";
 import { DashboardResponse, LoginSuccessResponse, PeriodType, CommodityKey } from "./types";
 import { AlertCircle, RefreshCw, ArrowDown, Cloud, Hand } from "lucide-react";
-import { AnimatePresence, motion, useMotionValue, useTransform, animate, PanInfo } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { ALL_COMMODITY_KEYS } from "./utils/formatters";
+import { useSwipeNav } from "./hooks/useSwipeNav";
 
 // Urutan menu navigasi: Beranda → Komoditas → Kebun → Grafik → Unduh (PDF) → Akun
 const TAB_ORDER: TabKey[] = ["beranda", "komoditas", "kebun", "grafik", "pdf", "akun"];
@@ -62,16 +63,10 @@ export default function App() {
   const [grafikCommodityKey, setGrafikCommodityKey] = useState<CommodityKey>("karet");
   const [grafikRegionalFilter, setGrafikRegionalFilter] = useState<string>("all");
 
-  // Swipe navigation states (khusus touchscreen)
+  // Swipe navigation states (arah transisi & hint)
   const [slideDirection, setSlideDirection] = useState<number>(0); // 1 = ke kanan (swipe kiri), -1 = ke kiri (swipe kanan), 0 = klik
   const [isTouchDevice, setIsTouchDevice] = useState<boolean>(false);
   const [showSwipeHint, setShowSwipeHint] = useState<boolean>(false);
-
-  const dragX = useMotionValue(0);
-  const dragOpacity = useTransform(dragX, [-60, 0, 60], [0.88, 1, 0.88]);
-
-  const isPanningIgnoredRef = useRef<boolean>(false);
-  const isPanHorizontalRef = useRef<boolean | null>(null);
 
   // Deteksi perangkat sentuh (pointer: coarse atau ontouchstart)
   useEffect(() => {
@@ -124,12 +119,11 @@ export default function App() {
         } catch {}
       }
 
-      dragX.set(0);
       setSlideDirection(direction);
       setActiveTab(nextTab);
       window.scrollTo(0, 0);
     },
-    [showSwipeHint, dragX]
+    [showSwipeHint]
   );
 
   const handleTabClick = (nextTab: TabKey) => {
@@ -139,119 +133,20 @@ export default function App() {
     handleTabTransition(nextTab, dir);
   };
 
-  // Handler gesture pan untuk swipe antar tab
-  const handlePanStart = (
-    e: MouseEvent | TouchEvent | PointerEvent,
-    _info: PanInfo
-  ) => {
-    isPanningIgnoredRef.current = false;
-    isPanHorizontalRef.current = null;
-
-    const target = e.target as HTMLElement | null;
-    if (!target) return;
-
-    // Abaikan jika gesture dimulai di area scrollable/interaktif sendiri
-    const isIgnored = Boolean(
-      target.closest(
-        '[data-no-swipe], [data-no-swipe="true"], table, .echarts-for-react, input, select, textarea, [role="slider"], [role="dialog"]'
-      )
-    );
-
-    if (isIgnored) {
-      isPanningIgnoredRef.current = true;
+  // Navigasi swipe gesture khusus layar sentuh via hook useSwipeNav
+  useSwipeNav(
+    Boolean(token && dashboardData),
+    () => {
+      // geser ke KIRI → menu berikutnya
+      const i = TAB_ORDER.indexOf(activeTab);
+      if (i < TAB_ORDER.length - 1) handleTabTransition(TAB_ORDER[i + 1], 1);
+    },
+    () => {
+      // geser ke KANAN → menu sebelumnya
+      const i = TAB_ORDER.indexOf(activeTab);
+      if (i > 0) handleTabTransition(TAB_ORDER[i - 1], -1);
     }
-  };
-
-  const handlePan = (
-    _e: MouseEvent | TouchEvent | PointerEvent,
-    info: PanInfo
-  ) => {
-    if (isPanningIgnoredRef.current) return;
-
-    const dx = info.offset.x;
-    const dy = info.offset.y;
-
-    // Tentukan arah dominan pada awal geseran (threshold 8px)
-    if (isPanHorizontalRef.current === null) {
-      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
-        if (Math.abs(dx) > 1.2 * Math.abs(dy)) {
-          isPanHorizontalRef.current = true;
-        } else {
-          isPanHorizontalRef.current = false;
-          isPanningIgnoredRef.current = true;
-          dragX.set(0);
-          return;
-        }
-      } else {
-        return;
-      }
-    }
-
-    if (!isPanHorizontalRef.current) return;
-
-    const currentIdx = TAB_ORDER.indexOf(activeTab);
-    const isLeftEdge = currentIdx === 0 && dx > 0; // Beranda geser kanan (mentok)
-    const isRightEdge = currentIdx === TAB_ORDER.length - 1 && dx < 0; // Akun geser kiri (mentok)
-
-    let targetX = 0;
-    if (isLeftEdge || isRightEdge) {
-      // Mentok membal / elastis (maks 20px)
-      targetX = Math.sign(dx) * Math.min(Math.abs(dx) * 0.12, 20);
-    } else {
-      // Konten ikut bergeser sedikit dengan hambatan (maks 60px)
-      targetX = Math.sign(dx) * Math.min(Math.abs(dx) * 0.35, 60);
-    }
-
-    dragX.set(targetX);
-  };
-
-  const handlePanEnd = (
-    _e: MouseEvent | TouchEvent | PointerEvent,
-    info: PanInfo
-  ) => {
-    if (isPanningIgnoredRef.current || isPanHorizontalRef.current !== true) {
-      animate(dragX, 0, { type: "spring", stiffness: 450, damping: 28 });
-      isPanningIgnoredRef.current = false;
-      isPanHorizontalRef.current = null;
-      return;
-    }
-
-    const dx = info.offset.x;
-    const dy = info.offset.y;
-    const vx = info.velocity.x;
-
-    const isHorizontalDominant = Math.abs(dx) > 1.5 * Math.abs(dy);
-    const isSwipeQualified =
-      (Math.abs(dx) >= 80 || Math.abs(vx) >= 500) && isHorizontalDominant;
-
-    const currentIdx = TAB_ORDER.indexOf(activeTab);
-
-    if (isSwipeQualified) {
-      if (dx < 0) {
-        // Geser ke KIRI = pindah ke menu berikutnya (kanan)
-        if (currentIdx < TAB_ORDER.length - 1) {
-          handleTabTransition(TAB_ORDER[currentIdx + 1], 1);
-        } else {
-          // Di Akun geser kiri: mentok memantul
-          animate(dragX, 0, { type: "spring", stiffness: 450, damping: 24 });
-        }
-      } else {
-        // Geser ke KANAN = kembali ke menu sebelumnya (kiri)
-        if (currentIdx > 0) {
-          handleTabTransition(TAB_ORDER[currentIdx - 1], -1);
-        } else {
-          // Di Beranda geser kanan: mentok memantul
-          animate(dragX, 0, { type: "spring", stiffness: 450, damping: 24 });
-        }
-      }
-    } else {
-      // Kembali ke posisi normal
-      animate(dragX, 0, { type: "spring", stiffness: 450, damping: 28 });
-    }
-
-    isPanHorizontalRef.current = null;
-    isPanningIgnoredRef.current = false;
-  };
+  );
 
   // Pull-to-refresh states
   const [pullDistance, setPullDistance] = useState<number>(0);
@@ -598,18 +493,8 @@ export default function App() {
           isUpdatingDate={isUpdatingDate}
         />
 
-        {/* 2. Konten Utama Berdasarkan Tab yang Aktif dengan Animasi Slide + Fade 250ms & Gesture Swipe Antar Menu */}
-        <motion.div
-          style={{
-            x: isTouchDevice ? dragX : 0,
-            opacity: isTouchDevice ? dragOpacity : 1,
-            touchAction: "pan-y",
-          }}
-          onPanStart={isTouchDevice ? handlePanStart : undefined}
-          onPan={isTouchDevice ? handlePan : undefined}
-          onPanEnd={isTouchDevice ? handlePanEnd : undefined}
-          className="w-full min-h-[calc(100vh-170px)]"
-        >
+        {/* 2. Konten Utama Berdasarkan Tab yang Aktif dengan Animasi Slide + Fade 250ms */}
+        <div className="w-full min-h-[calc(100vh-170px)]">
           <main className="max-w-7xl mx-auto px-3.5 sm:px-6 pt-5">
             <AnimatePresence mode="wait" custom={slideDirection}>
               <motion.div
@@ -705,7 +590,7 @@ export default function App() {
               </motion.div>
             </AnimatePresence>
           </main>
-        </motion.div>
+        </div>
       </div>
 
       {/* 3. Watermark Bawah & Bottom Navigation */}
