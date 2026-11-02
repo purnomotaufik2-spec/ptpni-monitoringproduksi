@@ -31,6 +31,7 @@ interface KomoditasTabProps {
   data: DashboardResponse;
   period: PeriodType;
   initialCommodityKey?: CommodityKey;
+  onCommodityChange?: (key: CommodityKey) => void;
 }
 
 type SortKey = "capaian_desc" | "capaian_asc" | "realisasi_desc" | "nama_asc";
@@ -39,6 +40,7 @@ export const KomoditasTab: React.FC<KomoditasTabProps> = ({
   data,
   period,
   initialCommodityKey = "karet",
+  onCommodityChange,
 }) => {
   const [activeKey, setActiveKey] = useState<CommodityKey>(initialCommodityKey);
   const [selectedRegional, setSelectedRegional] = useState<Row | null>(null);
@@ -57,6 +59,7 @@ export const KomoditasTab: React.FC<KomoditasTabProps> = ({
     setActiveKey(key);
     setSelectedRegional(null);
     setSelectedUnit(null);
+    onCommodityChange?.(key);
   };
 
   // Sort kartu regional sesuai periode aktif
@@ -111,7 +114,7 @@ export const KomoditasTab: React.FC<KomoditasTabProps> = ({
         <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B] block mb-2">
           Pilih Komoditas:
         </span>
-        <div className="flex space-x-2 overflow-x-auto no-scrollbar py-1">
+        <div className="flex space-x-2 overflow-x-auto no-scrollbar py-1" data-no-swipe="true">
           {ALL_COMMODITY_KEYS.map((key) => {
             const m = COMMODITIES_METADATA[key];
             const isActive = activeKey === key;

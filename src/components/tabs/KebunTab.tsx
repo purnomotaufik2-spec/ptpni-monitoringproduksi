@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Search,
   ArrowUpDown,
@@ -23,13 +23,23 @@ import {
 } from "../../utils/formatters";
 import { CommodityIcon } from "../CommodityIcons";
 
+export interface KebunFilterState {
+  selectedCommodities: CommodityKey[];
+  selectedRegionals: string[];
+  searchTerm: string;
+  sortType: SortType;
+  viewMode: "card" | "table";
+}
+
 interface KebunTabProps {
   data: DashboardResponse;
   period: PeriodType;
   filterCommodityKey?: CommodityKey | null;
+  savedFilters?: KebunFilterState;
+  onFiltersChange?: (filters: KebunFilterState) => void;
 }
 
-type SortType =
+export type SortType =
   | "capaian_desc"
   | "capaian_asc"
   | "prog_desc"
@@ -38,14 +48,34 @@ type SortType =
   | "protas_desc"
   | "nama_asc";
 
-export const KebunTab: React.FC<KebunTabProps> = ({ data, period, filterCommodityKey }) => {
+export const KebunTab: React.FC<KebunTabProps> = ({
+  data,
+  period,
+  filterCommodityKey,
+  savedFilters,
+  onFiltersChange,
+}) => {
   const [selectedCommodities, setSelectedCommodities] = useState<CommodityKey[]>(
-    filterCommodityKey ? [filterCommodityKey] : ALL_COMMODITY_KEYS
+    savedFilters?.selectedCommodities ??
+      (filterCommodityKey ? [filterCommodityKey] : ALL_COMMODITY_KEYS)
   );
-  const [selectedRegionals, setSelectedRegionals] = useState<string[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [sortType, setSortType] = useState<SortType>("capaian_desc");
-  const [viewMode, setViewMode] = useState<"card" | "table">("card");
+  const [selectedRegionals, setSelectedRegionals] = useState<string[]>(
+    savedFilters?.selectedRegionals ?? []
+  );
+  const [searchTerm, setSearchTerm] = useState(savedFilters?.searchTerm ?? "");
+  const [sortType, setSortType] = useState<SortType>(savedFilters?.sortType ?? "capaian_desc");
+  const [viewMode, setViewMode] = useState<"card" | "table">(savedFilters?.viewMode ?? "card");
+
+  // Keep parent filters updated so tab changes preserve selections
+  useEffect(() => {
+    onFiltersChange?.({
+      selectedCommodities,
+      selectedRegionals,
+      searchTerm,
+      sortType,
+      viewMode,
+    });
+  }, [selectedCommodities, selectedRegionals, searchTerm, sortType, viewMode, onFiltersChange]);
 
   // Kumpulan seluruh nama regional dari semua komoditas
   const allRegionals = useMemo(() => {
@@ -180,7 +210,7 @@ export const KebunTab: React.FC<KebunTabProps> = ({ data, period, filterCommodit
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2" data-no-swipe="true">
             {ALL_COMMODITY_KEYS.map((key) => {
               const meta = COMMODITIES_METADATA[key];
               const isSelected = selectedCommodities.includes(key);
@@ -226,7 +256,7 @@ export const KebunTab: React.FC<KebunTabProps> = ({ data, period, filterCommodit
             )}
           </div>
 
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5" data-no-swipe="true">
             {allRegionals.map((r) => {
               const isSelected = selectedRegionals.includes(r);
               return (
@@ -469,7 +499,7 @@ export const KebunTab: React.FC<KebunTabProps> = ({ data, period, filterCommodit
       ) : (
         /* 4. Tampilan Tabel */
         <section className="bg-white rounded-[14px] border border-[#E2E8F0] shadow-[0_2px_10px_rgba(11,31,75,0.06)] overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" data-no-swipe="true">
             <table className="w-full text-xs text-left">
               <thead>
                 <tr className="bg-[#0B1F4B] text-white">

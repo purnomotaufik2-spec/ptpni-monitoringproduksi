@@ -174,7 +174,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           <div className="pt-2 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-2.5">
             {isPeriodActive ? (
               /* Segmented control interaktif untuk halaman Beranda, Komoditas, Kebun, Grafik */
-              <div className="bg-white/15 p-1 rounded-2xl flex items-center gap-1 border border-white/20 w-full sm:w-auto shadow-inner relative">
+              <div data-no-swipe="true" className="bg-white/15 p-1 rounded-2xl flex items-center gap-1 border border-white/20 w-full sm:w-auto shadow-inner relative">
                 {[
                   { key: "hari_ini", label: "Hari Ini" },
                   { key: "bulan", label: "Bulan s/d HI" },
@@ -222,7 +222,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
       {/* Modal Date Picker */}
       {showDatePicker && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+        <div data-no-swipe="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
           <div className="glass-card rounded-[18px] p-5 max-w-sm w-full shadow-2xl border border-white/60">
             <h3 className="text-sm font-bold text-[#0B1F4B] mb-1 flex items-center gap-2">
               <Calendar className="w-4 h-4 text-[#1565C0]" />

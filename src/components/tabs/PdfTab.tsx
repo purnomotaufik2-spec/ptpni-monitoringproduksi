@@ -998,7 +998,7 @@ export const PdfTab: React.FC<PdfTabProps> = ({ token, reportDate, onSessionExpi
 
       {/* 7. MODAL PRATINJAU DOKUMEN (Menggunakan iframe aman, tanpa window.open) */}
       {previewFile && previewUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-3 sm:p-6">
+        <div data-no-swipe="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-3 sm:p-6">
           <div className="bg-white rounded-[18px] max-w-4xl w-full h-[85vh] flex flex-col shadow-2xl overflow-hidden border border-slate-300">
             {/* Header Modal */}
             <div className="bg-[#0B1F4B] text-white px-5 py-3 flex items-center justify-between border-b-[3px] border-[#F5B93E]">

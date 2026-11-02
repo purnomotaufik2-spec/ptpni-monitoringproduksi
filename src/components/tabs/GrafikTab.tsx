@@ -21,6 +21,10 @@ import { CommodityIcon } from "../CommodityIcons";
 interface GrafikTabProps {
   data: DashboardResponse;
   period: PeriodType;
+  savedCommodityKey?: CommodityKey;
+  savedRegionalFilter?: string;
+  onCommodityChange?: (key: CommodityKey) => void;
+  onRegionalChange?: (reg: string) => void;
 }
 
 // Design Token Gradients
@@ -50,9 +54,18 @@ const RKAP_GRADIENT = {
 
 const PROTAS_TL_COLOR = "#94A3B8";
 
-export const GrafikTab: React.FC<GrafikTabProps> = ({ data, period }) => {
-  const [activeKey, setActiveKey] = useState<CommodityKey>("karet");
-  const [selectedRegionalFilter, setSelectedRegionalFilter] = useState<string>("all");
+export const GrafikTab: React.FC<GrafikTabProps> = ({
+  data,
+  period,
+  savedCommodityKey,
+  savedRegionalFilter,
+  onCommodityChange,
+  onRegionalChange,
+}) => {
+  const [activeKey, setActiveKey] = useState<CommodityKey>(savedCommodityKey || "karet");
+  const [selectedRegionalFilter, setSelectedRegionalFilter] = useState<string>(
+    savedRegionalFilter || "all"
+  );
 
   const comm = data.commodities?.[activeKey];
   const meta = COMMODITIES_METADATA[activeKey];
@@ -848,7 +861,7 @@ export const GrafikTab: React.FC<GrafikTabProps> = ({ data, period }) => {
           <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#64748B] block mb-2">
             Pilih Komoditas untuk Analisis Grafik:
           </span>
-          <div className="flex space-x-2 overflow-x-auto no-scrollbar py-1">
+          <div className="flex space-x-2 overflow-x-auto no-scrollbar py-1" data-no-swipe="true">
             {ALL_COMMODITY_KEYS.map((key) => {
               const m = COMMODITIES_METADATA[key];
               const isActive = activeKey === key;
@@ -859,6 +872,8 @@ export const GrafikTab: React.FC<GrafikTabProps> = ({ data, period }) => {
                   onClick={() => {
                     setActiveKey(key);
                     setSelectedRegionalFilter("all");
+                    onCommodityChange?.(key);
+                    onRegionalChange?.("all");
                   }}
                   className={`whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer active:scale-95 ${
                     isActive
@@ -886,7 +901,12 @@ export const GrafikTab: React.FC<GrafikTabProps> = ({ data, period }) => {
             <span className="text-[#0B1F4B] font-bold">Filter Regional:</span>
             <select
               value={selectedRegionalFilter}
-              onChange={(e) => setSelectedRegionalFilter(e.target.value)}
+              onChange={(e) => {
+                const reg = e.target.value;
+                setSelectedRegionalFilter(reg);
+                onRegionalChange?.(reg);
+              }}
+              data-no-swipe="true"
               className="bg-[#F3F5F9] border border-[#E2E8F0] rounded-xl px-3 py-1.5 text-xs font-bold text-[#0B1F4B] cursor-pointer focus:outline-none"
             >
               <option value="all">Semua Regional ({regionalOptions.length})</option>
@@ -905,7 +925,7 @@ export const GrafikTab: React.FC<GrafikTabProps> = ({ data, period }) => {
       </section>
 
       {/* Grid Grafik Responsif (Uniform Height 340px / 280px on HP) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" data-no-swipe="true">
         {/* 1. Realisasi vs RKAP per Regional */}
         <div className="bg-white rounded-[14px] p-4 sm:p-5 border border-[#E2E8F0] shadow-[0_2px_10px_rgba(11,31,75,0.06)] space-y-2 flex flex-col justify-between">
           <div className="flex items-center justify-between">

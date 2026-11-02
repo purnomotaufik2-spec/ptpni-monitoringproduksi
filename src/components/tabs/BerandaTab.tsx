@@ -514,7 +514,7 @@ export const BerandaTab: React.FC<BerandaTabProps> = ({
     >
       {/* 1. Bar Pemilih Komoditas (Chip Berwarna Identitas) */}
       <section className="glass-card rounded-[18px] p-3 sm:p-4">
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5" data-no-swipe="true">
           {/* Tombol "Semua" */}
           <button
             type="button"

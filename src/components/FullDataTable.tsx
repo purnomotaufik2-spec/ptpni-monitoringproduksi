@@ -186,7 +186,7 @@ export const FullDataTable: React.FC<FullDataTableProps> = ({ commodity, period 
       </div>
 
       {/* Kontainer Tabel dengan Sticky Header & Sticky Kolom Unit */}
-      <div className="overflow-x-auto custom-scrollbar max-h-[640px]">
+      <div className="overflow-x-auto custom-scrollbar max-h-[640px]" data-no-swipe="true">
         <table className="w-full text-left text-xs border-collapse">
           {/* HEADER 2 TINGKAT BERLATAR NAVY 900 */}
           {!isKayu ? (
