@@ -133,20 +133,26 @@ export default function App() {
     handleTabTransition(nextTab, dir);
   };
 
+  // Ref elemen konten tab untuk animasi swipe mengikuti jari langsung
+  const contentWrapperRef = useRef<HTMLDivElement>(null);
+
   // Navigasi swipe gesture khusus layar sentuh via hook useSwipeNav
-  useSwipeNav(
-    Boolean(token && dashboardData),
-    () => {
+  useSwipeNav({
+    enabled: Boolean(token && dashboardData),
+    targetRef: contentWrapperRef,
+    canGoNext: () => TAB_ORDER.indexOf(activeTab) < TAB_ORDER.length - 1,
+    canGoPrev: () => TAB_ORDER.indexOf(activeTab) > 0,
+    onNext: () => {
       // geser ke KIRI → menu berikutnya
       const i = TAB_ORDER.indexOf(activeTab);
       if (i < TAB_ORDER.length - 1) handleTabTransition(TAB_ORDER[i + 1], 1);
     },
-    () => {
+    onPrev: () => {
       // geser ke KANAN → menu sebelumnya
       const i = TAB_ORDER.indexOf(activeTab);
       if (i > 0) handleTabTransition(TAB_ORDER[i - 1], -1);
-    }
-  );
+    },
+  });
 
   // Pull-to-refresh states
   const [pullDistance, setPullDistance] = useState<number>(0);
@@ -494,7 +500,7 @@ export default function App() {
         />
 
         {/* 2. Konten Utama Berdasarkan Tab yang Aktif dengan Animasi Slide + Fade 250ms */}
-        <div className="w-full min-h-[calc(100vh-170px)]">
+        <div ref={contentWrapperRef} className="w-full min-h-[calc(100vh-170px)]">
           <main className="max-w-7xl mx-auto px-3.5 sm:px-6 pt-5">
             <AnimatePresence mode="wait" custom={slideDirection}>
               <motion.div
